@@ -45,7 +45,7 @@ Xray-core контейнер (Alpine 3.20)
 | Домен           | `vpn-uncleyaroslav.up.railway.app`                                     |
 | Внешний порт    | 443 (TLS)                                                              |
 | Внутренний порт | 8080                                                                   |
-| Builder         | DOCKERFILE (Dockerfile в корне)                                        |
+| Builder         | RAILPACK (автодетект Dockerfile в корне)                               |
 | Регион          | US East                                                                |
 | CPU лимит       | 0.5 vCPU                                                               |
 | RAM лимит       | 512 MB                                                                 |
@@ -69,22 +69,22 @@ Xray-core контейнер (Alpine 3.20)
 
 ### Деплой
 
-Деплой выполняется командой `railway up` — загружает локальные файлы на Railway без Git.
-Railway собирает Docker-образ из Dockerfile и запускает контейнер.
+Деплой автоматический: `git push` в `master` → Railway собирает Docker-образ и деплоит.
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
-railway up --service xray --detach -m "описание изменений"
+git add -A && git commit -m "Описание изменений" && git push
 ```
 
-**Git-репозиторий отсутствует.** Файлы хранятся только локально. При потере — возможность обновлять утрачена (контейнер продолжит работать).
+**Git**: приватный репозиторий `traktorlixach/VPN-XRay-VLESS` на GitHub. SSH-алиас: `github_traktorlixach`. Ветка: `master`.
 
 ## Code Tree
 
 ```
 vpn/
+  .gitignore                # Исключает connection.json
   .mcp.json                 # MCP-сервер Railway
-  connection.json            # Единый источник истины: UUID, домен, WS_PATH
+  connection.json           # Единый источник истины: UUID, домен, WS_PATH (не в Git!)
+  connection.json.example   # Шаблон без секретов (в Git)
   rotate-key.sh             # Смена UUID одной командой (обновляет JSON + Railway ENV)
   qr.html                   # QR-код — читает connection.json, без хардкода
   Dockerfile                # Alpine 3.20 + Xray-core бинарник
@@ -99,7 +99,6 @@ vpn/
 
 ## Tech Debt
 
-- [ ] Нет Git-репозитория — риск потери исходников
 - [ ] Один UUID на всех пользователей — нельзя отозвать доступ одному, не затронув остальных
 - [ ] Xray предупреждает о депрекации WebSocket в пользу XHTTP — в будущем стоит мигрировать
 - [ ] Нет мониторинга/алертов — если контейнер упадёт, узнаешь только при попытке подключиться

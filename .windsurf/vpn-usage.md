@@ -55,7 +55,7 @@ vless://<UUID>@<ДОМЕН>:443?type=ws&security=tls&path=/<WS_PATH>&sni=<ДОМ
 
 ### Смена ключа (UUID)
 
-**Когда нужно менять**: утечка ключа, хочешь отозвать доступ всем, ротация по расписанию.
+**Когда нужно менять**: утечка ключа, хочешь отозвать доступ всем, ротация по расписанию (раз в 3-6 месяцев).
 
 **Что произойдёт**: все текущие клиенты мгновенно отключатся. Нужно обновить ссылку на всех устройствах.
 
@@ -107,23 +107,25 @@ cat /proc/sys/kernel/random/uuid
 Заменить блок `clients` на список:
 
 ```json
-"clients": [
-  {
-    "id": "${XRAY_UUID_1}",
-    "email": "user1@vpn",
-    "level": 0
-  },
-  {
-    "id": "${XRAY_UUID_2}",
-    "email": "user2@vpn",
-    "level": 0
-  },
-  {
-    "id": "${XRAY_UUID_3}",
-    "email": "user3@vpn",
-    "level": 0
-  }
-]
+{
+    "clients": [
+        {
+            "id": "${XRAY_UUID_1}",
+            "email": "user1@vpn",
+            "level": 0
+        },
+        {
+            "id": "${XRAY_UUID_2}",
+            "email": "user2@vpn",
+            "level": 0
+        },
+        {
+            "id": "${XRAY_UUID_3}",
+            "email": "user3@vpn",
+            "level": 0
+        }
+    ]
+}
 ```
 
 Поле `email` — это метка для логов (не настоящий email), помогает различать пользователей.
@@ -150,7 +152,7 @@ railway variable set \
 ### Шаг 5: Задеплоить
 
 ```bash
-railway up --service xray --detach -m "Добавлены отдельные UUID для пользователей"
+git add -A && git commit -m "Добавлены отдельные UUID для пользователей" && git push
 ```
 
 ### Шаг 6: Сгенерировать ссылки
@@ -168,26 +170,18 @@ vless://<UUID-3>@...#VPN-User3
 Чтобы отключить пользователя 2:
 1. Удалить его блок из `config.json.template`
 2. Удалить переменную: `railway variable delete XRAY_UUID_2 --service xray`
-3. Задеплоить: `railway up --service xray --detach -m "Отозван доступ user2"`
+3. `git add -A && git commit -m "Отозван доступ user2" && git push`
 
 Остальные пользователи продолжат работать без переподключения.
 
 ---
 
-## Деплой и обновления
-
-### Обновить конфиг / Dockerfile
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-# Отредактировать файлы, затем:
-railway up --service xray --detach -m "описание изменений"
-```
+## Обслуживание
 
 ### Обновить версию Xray-core
 
 1. Изменить `ARG XRAY_VERSION=vXX.XX.XX` в `Dockerfile`
-2. Задеплоить: `railway up --service xray --detach -m "Обновлён Xray до vXX.XX.XX"`
+2. `git add -A && git commit -m "Обновлён Xray до vXX.XX.XX" && git push`
 
 ### Просмотреть логи
 
@@ -226,35 +220,10 @@ railway redeploy --service xray --yes
 
 ---
 
-## Безопасность
-
-- **UUID = пароль** — не передавать по незащищённым каналам. Отправлять через Signal, Telegram (secret chat), или лично
-- **WS_PATH = дополнительный секрет** — без знания пути WebSocket подключиться нельзя, даже зная UUID
-- **TLS** — шифрование от клиента до Railway. Railway терминирует TLS, внутри сети Railway трафик по HTTP (безопасно, внутренняя сеть)
-- **Routing правило `geoip:private`** — блокирует доступ к приватным IP через VPN (защита от сканирования сети Railway)
-- **Ротация ключей** — рекомендуется менять UUID раз в 3-6 месяцев или при подозрении на утечку
-
----
-
 ## FAQ
 
 ### Сколько пользователей по одному ключу?
 Без ограничений. По одному UUID могут подключаться одновременно сколько угодно устройств.
 
-### Нужен ли Git?
-Нет. `railway up` загружает файлы напрямую. Но Git рекомендуется для бэкапа — при потере файлов обновлять контейнер будет нечем.
-
 ### Можно ли сменить домен *.up.railway.app?
-Да. В дашборде Railway: удалить автогенерированный домен, создать новый с желаемым именем (например, `vpn-uncleyaroslav.up.railway.app`). Для полностью своего домена — купить домен и привязать через `railway domain my.domain.com --service xray`.
-
-### Что такое `railway up`?
-Команда CLI, которая пакует файлы из текущей директории, загружает на Railway, Railway собирает Docker-образ и запускает контейнер. Аналог `docker build + push`, но без реестра.
-
-### Как добавить кастомный домен?
-```bash
-# 1. Купить домен (Cloudflare, Namecheap, etc.)
-# 2. Привязать к Railway
-railway domain vpn.mydomain.com --service xray --port 8080 --json
-# 3. Настроить DNS (Railway покажет CNAME-запись)
-# 4. Обновить ссылку для клиентов — заменить домен
-```
+Да. В дашборде Railway: удалить автогенерированный домен, создать новый с желаемым именем. Для своего домена — купить домен и привязать через `railway domain my.domain.com --service xray`.
