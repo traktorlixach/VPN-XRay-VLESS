@@ -1,8 +1,16 @@
-# Секреты — не коммитить
+# Секреты и локальные env — не коммитить
+.env
 connection.json
+instances/*.env
+instances/*.json
+instances/*.png
+
+# Сгенерированные конфиги VPS
+docker-compose.yml
 
 # IDE
 .idea/
+__pycache__/
 
 # OS
 .DS_Store

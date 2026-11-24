@@ -2,13 +2,15 @@
 
 ## Ссылка для подключения
 
-Актуальная ссылка хранится в `connection.json` — единственный источник истины.
-QR-код и текст ссылки — открой `qr.html` в браузере.
+Актуальная ссылка хранится в `instances/<name>.json` на сервере и дублируется в Telegram-сообщении после деплоя/ротации.
 
 Формат ссылки:
+
 ```
-vless://<UUID>@<ДОМЕН>:443?type=ws&security=tls&path=/<WS_PATH>&sni=<ДОМЕН>&host=<ДОМЕН>#<НАЗВАНИЕ>
+vless://<UUID>@<SERVER>:<HOST_PORT>?encryption=none&flow=xtls-rprx-vision&security=reality&sni=<SNI>&fp=chrome&pbk=<PUBLIC_KEY>&sid=<SHORT_ID>&type=tcp#<NAME>
 ```
+
+`SERVER` — обычно публичный IP VPS (`SERVER_ADDR` в `instances/<name>.env`).
 
 ---
 
@@ -18,21 +20,20 @@ vless://<UUID>@<ДОМЕН>:443?type=ws&security=tls&path=/<WS_PATH>&sni=<ДОМ
 1. Установить [v2rayNG](https://play.google.com/store/apps/details?id=com.v2ray.ang) из Google Play
 2. Скопировать ссылку `vless://...`
 3. В приложении: "+" -> "Импорт конфигурации из буфера обмена"
-4. Нажать кнопку подключения (значок V внизу экрана)
+4. Нажать кнопку подключения
 
 ### iOS — Streisand (бесплатно) или Shadowrocket ($2.99)
 1. Установить из App Store
 2. Скопировать ссылку или сканировать QR-код
 3. Streisand: "+" -> "Из буфера обмена"
-4. Shadowrocket: "+" -> "Тип: VLESS" (или вставить ссылку)
+4. Shadowrocket: "+" -> вставить ссылку
 5. Нажать переключатель подключения
 
 ### Windows — v2rayN
-1. Скачать [v2rayN](https://github.com/2dust/v2rayN/releases) (файл `v2rayN-With-Core.zip`)
+1. Скачать [v2rayN](https://github.com/2dust/v2rayN/releases) (`v2rayN-With-Core.zip`)
 2. Распаковать, запустить `v2rayN.exe`
 3. Серверы -> "Импорт из буфера обмена"
 4. Правый клик на иконку в трее -> "Системный прокси" -> "Авто-настройка системного прокси"
-5. Для проверки: открыть браузер, зайти на заблокированный ресурс
 
 ### macOS — FoXray (бесплатно)
 1. Установить [FoXray](https://apps.apple.com/app/foxray/id6448898396) из App Store
@@ -46,184 +47,104 @@ vless://<UUID>@<ДОМЕН>:443?type=ws&security=tls&path=/<WS_PATH>&sni=<ДОМ
 
 ---
 
-## Один пользователь
+## Несколько пользователей
 
-Текущая конфигурация — **один UUID на всех**. Все устройства и пользователи подключаются с одним и тем же ключом. Это:
-- Просто в настройке
-- Нет лимита на количество одновременных подключений
-- Нельзя отозвать доступ одному пользователю, не затронув остальных
-
-### Смена ключа (UUID)
-
-**Когда нужно менять**: утечка ключа, хочешь отозвать доступ всем, ротация по расписанию (раз в 3-6 месяцев).
-
-**Что произойдёт**: все текущие клиенты мгновенно отключатся. Нужно обновить ссылку на всех устройствах.
-
-**Одна команда**:
+Каждый пользователь = отдельный инстанс = отдельный контейнер, UUID, REALITY-ключи и порт.
 
 ```bash
-./rotate-key.sh
+./deploy-vpn.sh vpn1   # для первого человека
+./deploy-vpn.sh vpn2   # для второго
+./deploy-vpn.sh vpn3
+./deploy-vpn.sh vpn4
+```
+
+После каждого деплоя в Telegram приходит отдельное сообщение с QR и ссылкой для этого пользователя.
+
+### Отозвать доступ пользователю
+
+Автоматического скрипта пока нет. Вручную на VPS:
+
+```bash
+# 1. Остановить и удалить контейнер
+docker compose rm -sf xray-<name>
+
+# 2. Удалить env/json инстанса
+rm -f instances/<name>.env instances/<name>.json instances/<name>.png
+
+# 3. Перегенерировать compose и применить
+python3 render-configs.py
+docker compose up -d
+```
+
+Остальные VPN продолжат работать.
+
+---
+
+## Смена ключа (UUID)
+
+Когда нужно: утечка ссылки, ротация по расписанию (раз в 3-6 месяцев).
+
+```bash
+./rotate-key.sh vpn1
 ```
 
 Скрипт:
 1. Генерирует новый UUID
-2. Обновляет `connection.json`
-3. Устанавливает в Railway ENV (контейнер перезапустится автоматически)
-4. Выводит новую ссылку
+2. Обновляет `instances/vpn1.env` и `instances/vpn1.json`
+3. Перезапускает контейнер
+4. Отправляет новую ссылку и QR в Telegram
 
-**После смены**: открой `qr.html` — там уже актуальный QR-код. Отправь его пользователям.
-
-### Смена WS_PATH
-
-WS_PATH меняется вручную — это редкая операция:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-NEW_PATH=$(head -c 16 /dev/urandom | xxd -p)
-railway variable set WS_PATH=$NEW_PATH --service xray
-```
-
-После смены WS_PATH нужно также обновить значение `ws_path` в `connection.json`.
-
----
-
-## Несколько пользователей с разными ключами
-
-Если нужно дать доступ нескольким людям с возможностью отозвать доступ у конкретного — нужно добавить несколько clients в конфиг Xray.
-
-### Шаг 1: Сгенерировать UUID для каждого пользователя
-
-```bash
-# Пользователь 1 (ты)
-cat /proc/sys/kernel/random/uuid
-# Пользователь 2 (друг)
-cat /proc/sys/kernel/random/uuid
-# Пользователь 3 (семья)
-cat /proc/sys/kernel/random/uuid
-```
-
-### Шаг 2: Обновить config.json.template
-
-Заменить блок `clients` на список:
-
-```json
-{
-    "clients": [
-        {
-            "id": "${XRAY_UUID_1}",
-            "email": "user1@vpn",
-            "level": 0
-        },
-        {
-            "id": "${XRAY_UUID_2}",
-            "email": "user2@vpn",
-            "level": 0
-        },
-        {
-            "id": "${XRAY_UUID_3}",
-            "email": "user3@vpn",
-            "level": 0
-        }
-    ]
-}
-```
-
-Поле `email` — это метка для логов (не настоящий email), помогает различать пользователей.
-
-### Шаг 3: Обновить entrypoint.sh
-
-Добавить экспорт новых переменных:
-
-```bash
-export PORT WS_PATH XRAY_UUID_1 XRAY_UUID_2 XRAY_UUID_3
-```
-
-### Шаг 4: Установить переменные в Railway
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-railway variable set \
-  XRAY_UUID_1=<uuid-1> \
-  XRAY_UUID_2=<uuid-2> \
-  XRAY_UUID_3=<uuid-3> \
-  --service xray
-```
-
-### Шаг 5: Задеплоить
-
-```bash
-git add -A && git commit -m "Добавлены отдельные UUID для пользователей" && git push
-```
-
-### Шаг 6: Сгенерировать ссылки
-
-Каждый пользователь получает свою ссылку (отличается только UUID):
-
-```
-vless://<UUID-1>@<ДОМЕН>:443?type=ws&security=tls&path=/<WS_PATH>&sni=<ДОМЕН>&host=<ДОМЕН>#VPN-User1
-vless://<UUID-2>@...#VPN-User2
-vless://<UUID-3>@...#VPN-User3
-```
-
-### Отзыв доступа у конкретного пользователя
-
-Чтобы отключить пользователя 2:
-1. Удалить его блок из `config.json.template`
-2. Удалить переменную: `railway variable delete XRAY_UUID_2 --service xray`
-3. `git add -A && git commit -m "Отозван доступ user2" && git push`
-
-Остальные пользователи продолжат работать без переподключения.
+Все текущие подключения этого VPN разорвутся; нужно обновить ссылку на устройствах.
 
 ---
 
 ## Обслуживание
 
+### Логи
+
+```bash
+docker compose logs -f xray-vpn1
+docker compose logs --tail=100 xray-vpn1
+```
+
+### Перезапуск/остановка
+
+```bash
+docker compose restart xray-vpn1
+docker compose down
+```
+
 ### Обновить версию Xray-core
 
 1. Изменить `ARG XRAY_VERSION=vXX.XX.XX` в `Dockerfile`
-2. `git add -A && git commit -m "Обновлён Xray до vXX.XX.XX" && git push`
-
-### Просмотреть логи
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-# Runtime-логи
-railway logs --service xray --lines 50
-# Build-логи
-railway logs --service xray --build --lines 50
-```
-
-### Перезапустить без пересборки
-
-```bash
-railway restart --service xray --yes
-```
-
-### Перестроить и задеплоить
-
-```bash
-railway redeploy --service xray --yes
-```
+2. `git add -A && git commit -m "Update Xray" && git push`
+3. На VPS: `git pull && docker build -t vpn-xray:latest . && docker compose up -d`
 
 ---
 
 ## Диагностика проблем
 
-| Проблема                       | Причина                         | Решение                                                          |
-|--------------------------------|---------------------------------|------------------------------------------------------------------|
-| Клиент не подключается         | Неправильный UUID или WS_PATH   | Проверь ссылку, сверь с `railway variable list --service xray`   |
-| "Connection refused"           | Контейнер не запущен            | `railway logs --service xray --lines 20` — смотри ошибки         |
-| Медленно работает              | Далёкий регион сервера          | Сменить регион в дашборде Railway                                |
-| Обрывы соединения              | Railway перезапускает контейнер | Проверь health, лимиты RAM                                       |
-| Сайты не открываются через VPN | DNS-проблемы на клиенте         | В клиенте включить "DNS over VPN" или вручную задать DNS 1.1.1.1 |
-| "FATAL: XRAY_UUID is not set"  | Не задана переменная            | `railway variable set XRAY_UUID=<uuid> --service xray`           |
+| Проблема | Причина | Решение |
+|----------|---------|---------|
+| Клиент не подключается | Неверный UUID/port/sid | Сверь ссылку с `instances/<name>.json` |
+| Подключение есть, сайты не открываются | DNS на клиенте | В клиенте включить "DNS over VPN" или указать 1.1.1.1 |
+| Резкие обрывы | Нестабильный канал VPS или блокировка порта | Проверь `docker compose logs`, смени `HOST_PORT`, проверь firewall |
+| После деплоя нет Telegram | Не заполнен `.env` или нет `qrencode` | Заполни `TELEGRAM_*`, выполни `sudo ./init-vps.sh` |
+| `render-configs.py` падает | Конфликт `HOST_PORT` или неполный `instances/*.env` | Удали/исправь `instances/*.env`, перезапусти `./deploy-vpn.sh <name>` |
+| VPN работает, но медленно | Далёкий/перегруженный VPS | Сменить тариф/регион, проверить канал |
 
 ---
 
 ## FAQ
 
-### Сколько пользователей по одному ключу?
-Без ограничений. По одному UUID могут подключаться одновременно сколько угодно устройств.
+### Сколько пользователей на одном VPN?
 
-### Можно ли сменить домен *.up.railway.app?
-Да. В дашборде Railway: удалить автогенерированный домен, создать новый с желаемым именем. Для своего домена — купить домен и привязать через `railway domain my.domain.com --service xray`.
+Один инстанс = один UUID. По нему может подключаться сколько угодно устройств одновременно, но отозвать доступ одному из них нельзя. Для семьи лучше отдельные инстансы.
+
+### Можно ли использовать домен вместо IP?
+
+Да. В `.env` задай `SERVER_ADDR=your.domain.com` (и DNS A-запись на IP VPS). REALITY не требует домена, но домен удобнее, если IP меняется.
+
+### Почему не WebSocket+TLS как раньше?
+
+WebSocket+TLS требует домен и Let's Encrypt. REALITY не требует домена и обычно устойчивее к DPI/РКН.
