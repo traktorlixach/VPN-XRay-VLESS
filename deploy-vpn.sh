@@ -177,6 +177,7 @@ if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: a
 fi
 
 docker compose up -d --remove-orphans >/dev/null
+docker compose up -d --force-recreate "xray-${NAME}" >/dev/null
 
 # Basic check that the service is running
 sleep 2
