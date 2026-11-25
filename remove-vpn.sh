@@ -90,6 +90,12 @@ if [[ "$HAS_OTHER" -eq 1 ]]; then
     docker rm -f "$CONTAINER" >/dev/null || true
   fi
 
+  if ! docker info >/dev/null 2>&1; then
+    restore_instance
+    echo "FATAL: Docker became unreachable while removing ${NAME}" >&2
+    exit 1
+  fi
+
   if container_exists; then
     restore_instance
     echo "FATAL: container ${CONTAINER} still exists after removal" >&2
@@ -105,6 +111,11 @@ else
     echo "FATAL: containers for ${SERVICE} still exist after removal" >&2
     exit 1
   fi
+  if ! docker info >/dev/null 2>&1; then
+    echo "FATAL: Docker became unreachable while removing ${NAME}" >&2
+    exit 1
+  fi
+
   if container_exists; then
     echo "FATAL: container ${CONTAINER} still exists after removal" >&2
     exit 1
