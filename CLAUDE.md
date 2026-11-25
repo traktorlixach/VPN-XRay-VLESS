@@ -3,7 +3,7 @@
 ## Quick Reference
 
 - **Назначение**: личный VPN для обхода блокировок РКН
-- **Стек**: Xray-core v24.12.31, VLESS + REALITY + TCP, Docker (Alpine 3.20)
+- **Стек**: Xray-core v26.11.9, VLESS + REALITY + TCP, Docker (Alpine 3.24)
 - **Хостинг**: любой VPS с Ubuntu/Debian и Docker; домен не нужен
 - **Протокол**: VLESS over TCP with REALITY (маскировка под TLS-сайт)
 - **Правила**: [rules.md](.windsurf/rules.md)
@@ -14,7 +14,7 @@
 ```
 Клиент (v2rayNG / Streisand / v2rayN / FoXray / Nekoray)
     |  VLESS + REALITY (TCP, IP:PORT)
-Xray-core контейнер (Alpine 3.20)
+Xray-core контейнер (Alpine 3.24)
     |  freedom outbound
 Интернет
 ```
@@ -26,7 +26,7 @@ Xray-core контейнер (Alpine 3.20)
 | envsubst в entrypoint | Ключи хранятся в `instances/*.env`, не в коде |
 | `render-configs.py` | Генерирует `docker-compose.yml` из `instances/*.env` |
 | Telegram-бот | Ссылка и QR отправляются после деплоя/ротации |
-| Alpine 3.20 | Минимальный образ (~20 MB) |
+| Alpine 3.24 | Минимальный образ (~20 MB) |
 
 ## Infrastructure
 
@@ -71,7 +71,7 @@ vpn/
   rotate-key.sh             # Смена UUID для одного инстанса
   remove-vpn.sh             # Отзыв доступа: удалить инстанс и его контейнер
   qr.html                   # QR/ссылка по instances/<name>.json (?name=<name>)
-  Dockerfile                # Alpine 3.20 + Xray-core бинарник
+  Dockerfile                # Alpine 3.24 + Xray-core бинарник
   config.json.template      # Шаблон конфига Xray с ${ENV} плейсхолдерами
   entrypoint.sh             # Подстановка ENV -> config.json + запуск xray
   README.md                 # Инструкция по VPS-деплою

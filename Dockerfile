@@ -1,6 +1,6 @@
-FROM alpine:3.20
+FROM alpine:3.24
 
-ARG XRAY_VERSION=v24.12.31
+ARG XRAY_VERSION=v26.11.9
 
 RUN apk add --no-cache ca-certificates curl unzip bash gettext \
     && ARCH=$(case "$(uname -m)" in x86_64) echo "64";; aarch64) echo "arm64-v8a";; *) echo "64";; esac) \
