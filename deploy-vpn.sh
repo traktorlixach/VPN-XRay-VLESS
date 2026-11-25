@@ -81,8 +81,8 @@ fi
 # Generate REALITY keypair if missing
 if [[ -z "${REALITY_PRIVATE_KEY:-}" || -z "${REALITY_PUBLIC_KEY:-}" ]]; then
   KEY_OUT="$(docker run --rm --entrypoint xray vpn-xray:latest x25519 2>/dev/null)"
-  REALITY_PRIVATE_KEY="$(awk 'tolower($0) ~ /private/ && tolower($0) ~ /key/ { print $NF; exit }' <<<"$KEY_OUT")"
-  REALITY_PUBLIC_KEY="$(awk 'tolower($0) ~ /public/ && tolower($0) ~ /key/ { print $NF; exit }' <<<"$KEY_OUT")"
+  REALITY_PRIVATE_KEY="$(awk 'tolower($0) ~ /^private ?key:/ { print $NF; exit }' <<<"$KEY_OUT")"
+  REALITY_PUBLIC_KEY="$(awk 'tolower($0) ~ /^(public ?key:|password)/ { print $NF; exit }' <<<"$KEY_OUT")"
   if [[ -z "$REALITY_PRIVATE_KEY" || -z "$REALITY_PUBLIC_KEY" ]]; then
     echo "FATAL: failed to generate REALITY keys" >&2
     exit 1

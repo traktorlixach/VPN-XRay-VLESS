@@ -19,7 +19,7 @@
 
 ## Xray-core
 
-- **Версия фиксирована** — `ARG XRAY_VERSION=v26.11.9` в Dockerfile. Обновлять вручную
+- **Версия фиксирована** — `ARG XRAY_VERSION=v26.2.6` в Dockerfile. Обновлять вручную
 - **envsubst** — `entrypoint.sh` генерирует `config.json` из `config.json.template`, подставляя `${PORT}`, `${XRAY_UUID}`, `${REALITY_*}` из ENV
 - **REALITY** — `dest`/`serverNames` должны совпадать по домену; `shortIds` — hex-строка
 - **flow `xtls-rprx-vision`** — обязателен и в конфиге, и в ссылке клиента

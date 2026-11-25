@@ -3,7 +3,7 @@
 ## Quick Reference
 
 - **Назначение**: личный VPN для обхода блокировок РКН
-- **Стек**: Xray-core v26.11.9, VLESS + REALITY + TCP, Docker (Alpine 3.24)
+- **Стек**: Xray-core v26.2.6, VLESS + REALITY + TCP, Docker (Alpine 3.24)
 - **Хостинг**: любой VPS с Ubuntu/Debian и Docker; домен не нужен
 - **Протокол**: VLESS over TCP with REALITY (маскировка под TLS-сайт)
 - **Правила**: [rules.md](.windsurf/rules.md)
