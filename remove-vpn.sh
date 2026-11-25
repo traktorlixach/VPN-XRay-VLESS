@@ -30,6 +30,8 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 HOST_PORT="$(awk -F= '$1 == "HOST_PORT" { print $2; exit }' "$ENV_FILE")"
+SERVICE="xray-${NAME}"
+CONTAINER="xray-${NAME}"
 HAS_OTHER=0
 for env_path in instances/*.env; do
   if [[ "$env_path" != "$ENV_FILE" ]]; then
@@ -38,33 +40,88 @@ for env_path in instances/*.env; do
   fi
 done
 
-# Remove only this service; this must not restart VPNs that were stopped.
+CONTAINER_ID=""
 if [[ -f docker-compose.yml ]]; then
-  docker compose rm -sf "xray-${NAME}" >/dev/null
+  CONTAINER_ID="$(docker compose ps -q "$SERVICE" 2>/dev/null | sed -n '1p' || true)"
+fi
+
+container_exists() {
+  if [[ -n "$CONTAINER_ID" ]] && docker inspect "$CONTAINER_ID" >/dev/null 2>&1; then
+    return 0
+  fi
+  if docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER"; then
+    return 0
+  fi
+  return 1
+}
+
+if [[ "$HAS_OTHER" -eq 1 ]]; then
+  TMP_DIR="$(mktemp -d)"
+  for suffix in env json png; do
+    src="instances/${NAME}.${suffix}"
+    if [[ -f "$src" ]]; then
+      mv "$src" "$TMP_DIR/${NAME}.${suffix}"
+    fi
+  done
+
+  restore_instance() {
+    trap - ERR
+    for suffix in env json png; do
+      if [[ -f "$TMP_DIR/${NAME}.${suffix}" ]]; then
+        mv "$TMP_DIR/${NAME}.${suffix}" "instances/${NAME}.${suffix}"
+      fi
+    done
+    python3 render-configs.py >/dev/null 2>&1 || true
+    rm -rf "$TMP_DIR"
+  }
+
+  # Render first: if another instance file is invalid, leave everything unchanged.
+  if ! python3 render-configs.py; then
+    restore_instance
+    echo "FATAL: cannot render remaining instances; ${NAME} was not removed" >&2
+    exit 1
+  fi
+
+  # Compose no longer contains this service, so remove the container directly.
+  if [[ -n "$CONTAINER_ID" ]]; then
+    docker rm -f "$CONTAINER_ID" >/dev/null || true
+  fi
+  if docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER"; then
+    docker rm -f "$CONTAINER" >/dev/null || true
+  fi
+
+  if container_exists; then
+    restore_instance
+    echo "FATAL: container ${CONTAINER} still exists after removal" >&2
+    exit 1
+  fi
+
+  rm -rf "$TMP_DIR"
 else
-  docker rm -f "xray-${NAME}" >/dev/null 2>&1 || true
-fi
+  if [[ -f docker-compose.yml ]]; then
+    docker compose rm -sf "$SERVICE" >/dev/null
+  fi
+  if [[ -f docker-compose.yml ]] && docker compose ps -aq "$SERVICE" 2>/dev/null | grep -q .; then
+    echo "FATAL: containers for ${SERVICE} still exist after removal" >&2
+    exit 1
+  fi
+  if container_exists; then
+    echo "FATAL: container ${CONTAINER} still exists after removal" >&2
+    exit 1
+  fi
+  if [[ -f docker-compose.yml ]]; then
+    docker compose down >/dev/null
+  fi
 
-if docker ps -a --format '{{.Names}}' | grep -qx "xray-${NAME}"; then
-  echo "FATAL: container xray-${NAME} still exists after removal" >&2
-  exit 1
+  rm -f "instances/${NAME}.env" "instances/${NAME}.json" "instances/${NAME}.png"
 fi
-
-# For the last instance, bring the Compose project down before deleting its env_file.
-if [[ "$HAS_OTHER" -eq 0 && -f docker-compose.yml ]]; then
-  docker compose down >/dev/null
-fi
-
-rm -f "instances/${NAME}.env" "instances/${NAME}.json" "instances/${NAME}.png"
 
 # Close the firewall rule opened by deploy-vpn.sh.
 if [[ -n "${HOST_PORT:-}" ]] && command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
   ufw delete allow "${HOST_PORT}/tcp" >/dev/null 2>&1 || true
 fi
 
-if [[ "$HAS_OTHER" -eq 1 ]]; then
-  python3 render-configs.py
-else
+if [[ "$HAS_OTHER" -eq 0 ]]; then
   rm -f docker-compose.yml
 fi
 
