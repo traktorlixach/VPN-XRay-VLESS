@@ -3,9 +3,9 @@
 ## Quick Reference
 
 - **Назначение**: личный VPN для обхода блокировок РКН
-- **Стек**: Xray-core v24.12.31, VLESS + WebSocket, Docker (Alpine 3.20)
-- **Хостинг**: Railway.com
-- **Протокол**: VLESS over WebSocket over TLS (маскировка под HTTPS)
+- **Стек**: Xray-core v26.2.6, VLESS + REALITY + TCP, Docker (Alpine 3.24)
+- **Хостинг**: любой VPS с Ubuntu/Debian и Docker; домен не нужен
+- **Протокол**: VLESS over TCP with REALITY (маскировка под TLS-сайт)
 - **Правила**: [rules.md](.windsurf/rules.md)
 - **Инструкции по VPN**: [vpn-usage.md](.windsurf/vpn-usage.md)
 
@@ -13,84 +13,68 @@
 
 ```
 Клиент (v2rayNG / Streisand / v2rayN / FoXray / Nekoray)
-    |  VLESS over WebSocket (TLS, порт 443)
-Railway reverse proxy (*.up.railway.app)
-    |  HTTP (внутренний порт 8080)
-Xray-core контейнер (Alpine 3.20)
+    |  VLESS + REALITY (TCP, IP:PORT)
+Xray-core контейнер (Alpine 3.24)
     |  freedom outbound
 Интернет
 ```
 
-| Решение               | Обоснование                                                    |
-|-----------------------|----------------------------------------------------------------|
-| VLESS + WebSocket     | Максимальная устойчивость к DPI/РКН, трафик неотличим от HTTPS |
-| Railway reverse proxy | Автоматическая TLS-терминация, домен `*.up.railway.app`        |
-| envsubst в entrypoint | Ключи хранятся в ENV Railway, не в коде                        |
-| connection.json       | Единый источник истины для ссылки (UUID, домен, WS_PATH)       |
-| rotate-key.sh         | Смена UUID одной командой (JSON + Railway ENV)                 |
-| Alpine 3.20           | Минимальный образ (~20 MB)                                     |
-| Один inbound          | Простота, достаточно для личного использования                 |
+| Решение | Обоснование |
+|---------|-------------|
+| VLESS + REALITY | Не нужен домен/TLS-сертификат; трафик выглядит как TLS к реальному сайту, устойчивее к DPI/РКН |
+| Один контейнер на пользователя | Отдельные UUID/REALITY-ключи/порт; можно отозвать доступ одному, не трогая остальных |
+| envsubst в entrypoint | Ключи хранятся в `instances/*.env`, не в коде |
+| `render-configs.py` | Генерирует `docker-compose.yml` из `instances/*.env` |
+| Telegram-бот | Ссылка и QR отправляются после деплоя/ротации |
+| Alpine 3.24 | Минимальный образ (~20 MB) |
 
 ## Infrastructure
 
-### Railway
+### VPS
 
-| Параметр        | Значение                                                               |
-|-----------------|------------------------------------------------------------------------|
-| Проект          | VPN-XRay-VLESS                                                         |
-| Project ID      | `8ae04c87-e798-49fa-9fee-bd5aaf9a2254`                                 |
-| Service ID      | `6b34806d-49d3-4193-a776-fd2fb0da79f2`                                 |
-| Environment     | production (`a630bc87-a07f-4183-aea2-b1f5c9a7410e`)                    |
-| Workspace       | Likhachev Yaroslav's Projects (`8681766b-e2f4-4786-b177-bbe030604d3f`) |
-| Домен           | `vpn-uncleyaroslav.up.railway.app`                                     |
-| Внешний порт    | 443 (TLS)                                                              |
-| Внутренний порт | 8080                                                                   |
-| Builder         | RAILPACK (автодетект Dockerfile в корне)                               |
-| Регион          | US East                                                                |
-| CPU лимит       | 0.5 vCPU                                                               |
-| RAM лимит       | 512 MB                                                                 |
-| Metal Build     | Включен                                                                |
-| Дашборд         | https://railway.com/project/8ae04c87-e798-49fa-9fee-bd5aaf9a2254       |
+| Параметр | Значение |
+|----------|----------|
+| ОС | Ubuntu/Debian |
+| Docker | Docker Engine + Compose plugin |
+| Домен | Не нужен; подключение по `SERVER_ADDR:HOST_PORT` |
+| Firewall | Открыты только порты `HOST_PORT` для каждого инстанса |
 
-### Railway CLI
+### ENV-переменные
 
-- Установлен в `$HOME/.local/bin/railway` (v4.33.0)
-- Перед использованием: `export PATH="$HOME/.local/bin:$PATH"`
-- Авторизация: уже выполнена (`railway whoami`)
-- Проект слинкован с директорией `/home/user/projects/vpn`
+| Файл | Переменные | Назначение |
+|------|------------|------------|
+| `.env` | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `PUBLIC_IP`, `SERVER_ADDR`, `REALITY_DEST`, `REALITY_SERVER_NAME`, `CLIENT_FP`, `FLOW` | Общие настройки и секреты Telegram |
+| `instances/<name>.env` | `NAME`, `XRAY_UUID`, `REALITY_PRIVATE_KEY`, `REALITY_PUBLIC_KEY`, `REALITY_SHORT_ID`, `REALITY_DEST`, `REALITY_SERVER_NAME`, `PORT`, `HOST_PORT`, `SERVER_ADDR`, `CLIENT_FP`, `FLOW` | Секреты конкретного VPN-канала |
 
-### Переменные окружения (Railway ENV)
-
-| Переменная  | Описание                              | Секрет? |
-|-------------|---------------------------------------|---------|
-| `XRAY_UUID` | UUID клиента для аутентификации VLESS | Да      |
-| `WS_PATH`   | Путь WebSocket (рандомная строка)     | Да      |
-| `PORT`      | Внутренний порт контейнера (8080)     | Нет     |
+`PORT` внутри контейнера обычно `443`; `HOST_PORT` — порт на VPS, который видит клиент.
 
 ### Деплой
 
-Деплой автоматический: `git push` в `master` → Railway собирает Docker-образ и деплоит.
-
 ```bash
-git add -A && git commit -m "Описание изменений" && git push
+sudo ./init-vps.sh          # один раз: Docker, qrencode, python3
+./deploy-vpn.sh vpn1        # создать/обновить инстанс и отправить ссылку в Telegram
+./rotate-key.sh vpn1        # сменить UUID и отправить новую ссылку
 ```
 
-**Git**: приватный репозиторий `traktorlixach/VPN-XRay-VLESS` на GitHub. SSH-алиас: `github_traktorlixach`. Ветка: `master`.
+`docker-compose.yml` генерируется скриптом и не коммитится.
 
 ## Code Tree
 
 ```
 vpn/
-  .gitignore                # Исключает connection.json
-  .mcp.json                 # MCP-сервер Railway
-  connection.json           # Единый источник истины: UUID, домен, WS_PATH (не в Git!)
-  connection.json.example   # Шаблон без секретов (в Git)
-  rotate-key.sh             # Смена UUID одной командой (обновляет JSON + Railway ENV)
-  qr.html                   # QR-код — читает connection.json, без хардкода
-  Dockerfile                # Alpine 3.20 + Xray-core бинарник
+  .gitignore                # Исключает .env, instances/*, docker-compose.yml
+  .env.example              # Шаблон общих ENV
+  deploy-vpn.sh             # Генерация env/ключей, render, up, Telegram
+  init-vps.sh               # Первичная настройка Ubuntu/Debian VPS
+  render-configs.py         # instances/*.env -> docker-compose.yml
+  send-telegram.sh          # Отправка сообщения/QR в Telegram
+  rotate-key.sh             # Смена UUID для одного инстанса
+  remove-vpn.sh             # Отзыв доступа: удалить инстанс и его контейнер
+  qr.html                   # QR/ссылка по instances/<name>.json (?name=<name>)
+  Dockerfile                # Alpine 3.24 + Xray-core бинарник
   config.json.template      # Шаблон конфига Xray с ${ENV} плейсхолдерами
   entrypoint.sh             # Подстановка ENV -> config.json + запуск xray
-  README.md                 # Инструкция, ссылается на connection.json
+  README.md                 # Инструкция по VPS-деплою
   CLAUDE.md                 # Этот файл — контекст проекта
   .windsurf/
     rules.md                # Правила и ограничения
@@ -99,6 +83,5 @@ vpn/
 
 ## Tech Debt
 
-- [ ] Один UUID на всех пользователей — нельзя отозвать доступ одному, не затронув остальных
-- [ ] Xray предупреждает о депрекации WebSocket в пользу XHTTP — в будущем стоит мигрировать
+- [ ] `REALITY_DEST=github.com` может перестать работать, если GitHub заблокирует/изменит TLS; тогда поменять в `.env`
 - [ ] Нет мониторинга/алертов — если контейнер упадёт, узнаешь только при попытке подключиться

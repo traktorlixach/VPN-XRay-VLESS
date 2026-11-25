@@ -1,7 +1,0 @@
-{
-  "uuid": "<XRAY_UUID из Railway ENV>",
-  "domain": "vpn-uncleyaroslav.up.railway.app",
-  "ws_path": "<WS_PATH из Railway ENV>",
-  "port": 443,
-  "name": "VPN-Railway"
-}

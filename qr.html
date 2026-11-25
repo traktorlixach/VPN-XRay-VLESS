@@ -12,19 +12,26 @@
 </style>
 </head>
 <body>
-<h1 id="title">VPN-Railway</h1>
+<h1 id="title">VPN</h1>
 <div id="qr"></div>
 <div class="link" id="link"></div>
 <div class="error" id="error"></div>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <script>
-  fetch('./connection.json')
+  var params = new URLSearchParams(location.search);
+  var name = (params.get('name') || params.get('instance') || 'vpn1').replace(/[^a-z0-9-]/g, '');
+  fetch('instances/' + name + '.json')
     .then(function(r) { return r.json(); })
     .then(function(c) {
-      var link = 'vless://' + c.uuid + '@' + c.domain + ':' + c.port
-        + '?type=ws&security=tls&path=/' + c.ws_path
-        + '&sni=' + c.domain + '&host=' + c.domain + '#' + c.name;
-      document.getElementById('title').textContent = c.name;
+      var link = 'vless://' + c.uuid + '@' + c.server + ':' + c.port
+        + '?encryption=none&flow=' + c.flow
+        + '&security=' + c.security
+        + '&sni=' + c.sni
+        + '&fp=' + c.fingerprint
+        + '&pbk=' + c.public_key
+        + '&sid=' + c.short_id
+        + '&type=' + c.type + '#' + c.name;
+      document.getElementById('title').textContent = 'VPN-' + c.name;
       document.getElementById('link').textContent = link;
       var qr = qrcode(0, 'M');
       qr.addData(link);
@@ -32,7 +39,7 @@
       document.getElementById('qr').innerHTML = qr.createSvgTag(6, 0);
     })
     .catch(function(e) {
-      document.getElementById('error').textContent = 'Не удалось загрузить connection.json: ' + e.message;
+      document.getElementById('error').textContent = 'Не удалось загрузить instances/' + name + '.json: ' + e.message;
     });
 </script>
 </body>
