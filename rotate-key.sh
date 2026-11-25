@@ -4,6 +4,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
+fix_owner() {
+  if [[ -n "${SUDO_USER:-}" ]]; then
+    chown "$SUDO_USER" "$@"
+  fi
+}
+
 NAME="${1:-}"
 
 if [[ ! "$NAME" =~ ^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$ ]]; then
@@ -46,6 +52,7 @@ while IFS= read -r line; do
 done < "$ENV_FILE" > "$TMP_ENV"
 mv "$TMP_ENV" "$ENV_FILE"
 chmod 600 "$ENV_FILE"
+fix_owner "$ENV_FILE"
 
 # Update JSON file if present
 if [[ -f "$JSON_FILE" ]]; then
@@ -61,6 +68,7 @@ with open(dst, 'w', encoding='utf-8') as f:
     f.write('\n')
 PY
   mv "$TMP_JSON" "$JSON_FILE"
+  fix_owner "$JSON_FILE"
 fi
 
 python3 render-configs.py
@@ -71,6 +79,7 @@ LINK="vless://${NEW_UUID}@${SERVER_ADDR}:${HOST_PORT}?encryption=none&flow=${FLO
 
 if command -v qrencode >/dev/null 2>&1; then
   qrencode -o "$QR_FILE" -s 10 "$LINK"
+  fix_owner "$QR_FILE"
 fi
 
 MESSAGE="VPN ${NAME} key rotated

@@ -36,8 +36,8 @@ def main() -> int:
         required = ["XRAY_UUID", "REALITY_PRIVATE_KEY", "REALITY_SHORT_ID", "PORT", "HOST_PORT"]
         missing = [key for key in required if not data.get(key)]
         if missing:
-            print(f"skip {env_path.name}: missing {', '.join(missing)}", file=sys.stderr)
-            continue
+            print(f"error: {env_path.name}: missing {', '.join(missing)}", file=sys.stderr)
+            return 1
 
         host_port = data["HOST_PORT"]
         if host_port in seen_ports:
@@ -62,6 +62,7 @@ def main() -> int:
         lines.extend(
             [
                 f"  xray-{name}:",
+                f"    container_name: xray-{name}",
                 "    image: vpn-xray:latest",
                 "    restart: unless-stopped",
                 "    env_file:",

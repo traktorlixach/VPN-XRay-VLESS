@@ -56,7 +56,7 @@ mkdir -p instances
 chmod 700 instances
 
 if [[ "$TARGET_USER" != "root" ]]; then
-  chown "$TARGET_USER":"$TARGET_USER" .env instances || true
+  chown "$TARGET_USER" .env instances
   usermod -aG docker "$TARGET_USER" || true
 fi
 
@@ -66,5 +66,5 @@ echo ""
 echo "VPS is ready. Next steps:"
 echo "1. Edit .env: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID (optional PUBLIC_IP/SERVER_ADDR)."
 echo "2. Deploy VPNs: ./deploy-vpn.sh vpn1 && ./deploy-vpn.sh vpn2 ..."
-echo "   If docker says 'permission denied', re-login for the docker group or run deploy with sudo."
+echo "   If docker says 'permission denied', re-login or run 'newgrp docker'; avoid sudo deploys."
 echo "3. Open firewall ports printed by deploy-vpn.sh if you use a firewall other than UFW."

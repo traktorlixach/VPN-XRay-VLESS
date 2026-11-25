@@ -4,6 +4,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
+fix_owner() {
+  if [[ -n "${SUDO_USER:-}" ]]; then
+    chown "$SUDO_USER" "$@"
+  fi
+}
+
 NAME="${1:-}"
 
 if [[ ! "$NAME" =~ ^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$ ]]; then
@@ -68,8 +74,8 @@ fi
 # Generate REALITY keypair if missing
 if [[ -z "${REALITY_PRIVATE_KEY:-}" || -z "${REALITY_PUBLIC_KEY:-}" ]]; then
   KEY_OUT="$(docker run --rm --entrypoint xray vpn-xray:latest x25519 2>/dev/null)"
-  REALITY_PRIVATE_KEY="$(awk '/Private key:/{print $3}' <<<"$KEY_OUT")"
-  REALITY_PUBLIC_KEY="$(awk '/Public key:/{print $3}' <<<"$KEY_OUT")"
+  REALITY_PRIVATE_KEY="$(awk 'tolower($0) ~ /private/ && tolower($0) ~ /key/ { print $NF; exit }' <<<"$KEY_OUT")"
+  REALITY_PUBLIC_KEY="$(awk 'tolower($0) ~ /public/ && tolower($0) ~ /key/ { print $NF; exit }' <<<"$KEY_OUT")"
   if [[ -z "$REALITY_PRIVATE_KEY" || -z "$REALITY_PUBLIC_KEY" ]]; then
     echo "FATAL: failed to generate REALITY keys" >&2
     exit 1
@@ -96,8 +102,10 @@ if [[ -z "$SERVER_ADDR" ]]; then
   exit 1
 fi
 
-if [[ ! "$SERVER_ADDR" =~ ^[A-Za-z0-9.-]+$ ]] || [[ "$SERVER_ADDR" == *[[:space:]]* ]]; then
-  echo "FATAL: invalid SERVER_ADDR: ${SERVER_ADDR}" >&2
+if [[ "$SERVER_ADDR" =~ ^\[[0-9A-Fa-f:.]+\]$ ]] || [[ "$SERVER_ADDR" =~ ^[A-Za-z0-9.-]+$ ]]; then
+  :
+else
+  echo "FATAL: invalid SERVER_ADDR: ${SERVER_ADDR}. Use hostname/IPv4 or bracketed IPv6 like [2001:db8::1]" >&2
   exit 1
 fi
 
@@ -152,6 +160,7 @@ cat > "$JSON_FILE" <<EOF
   "type": "tcp"
 }
 EOF
+fix_owner "$ENV_FILE" "$JSON_FILE"
 
 python3 render-configs.py
 
@@ -173,6 +182,7 @@ LINK="vless://${XRAY_UUID}@${SERVER_ADDR}:${HOST_PORT}?encryption=none&flow=${FL
 
 if command -v qrencode >/dev/null 2>&1; then
   qrencode -o "$QR_FILE" -s 10 "$LINK"
+  fix_owner "$QR_FILE"
 else
   echo "WARN: qrencode is not installed; QR will not be sent" >&2
 fi
