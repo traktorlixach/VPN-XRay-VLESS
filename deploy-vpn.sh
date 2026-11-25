@@ -39,8 +39,8 @@ JSON_FILE="instances/${NAME}.json"
 QR_FILE="instances/${NAME}.png"
 
 # Shared defaults from .env
-DEFAULT_REALITY_DEST="${REALITY_DEST:-www.microsoft.com:443}"
-DEFAULT_REALITY_SERVER_NAME="${REALITY_SERVER_NAME:-www.microsoft.com}"
+DEFAULT_REALITY_DEST="${REALITY_DEST:-github.com:443}"
+DEFAULT_REALITY_SERVER_NAME="${REALITY_SERVER_NAME:-github.com}"
 DEFAULT_CLIENT_FP="${CLIENT_FP:-chrome}"
 DEFAULT_FLOW="${FLOW:-xtls-rprx-vision}"
 SHARED_SERVER_ADDR="${SERVER_ADDR:-}"

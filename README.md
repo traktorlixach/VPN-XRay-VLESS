@@ -34,7 +34,7 @@ nano .env
 Опционально:
 
 - `PUBLIC_IP` / `SERVER_ADDR` — если автоопределение IP не сработает или нужен домен позже
-- `REALITY_DEST` / `REALITY_SERVER_NAME` — другой сайт для маскировки, если `www.microsoft.com` недоступен с VPS
+- `REALITY_DEST` / `REALITY_SERVER_NAME` — другой сайт для маскировки, если `github.com` недоступен с VPS
 
 Деплой первого VPN:
 
