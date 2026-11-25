@@ -8,6 +8,7 @@ fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
+TARGET_USER="${SUDO_USER:-${USER:-root}}"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -36,12 +37,28 @@ fi
 
 systemctl enable --now docker
 
+if ! docker compose version >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y docker-compose-plugin || apt-get install -y docker-compose-v2 || true
+fi
+if ! docker compose version >/dev/null 2>&1; then
+  echo "FATAL: Docker Compose plugin is missing. Install docker-compose-plugin for your Docker repo." >&2
+  exit 1
+fi
+
 if [[ ! -f .env ]]; then
   cp .env.example .env
   echo "Created .env from .env.example. Fill TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID before deploy."
 fi
+chmod 600 .env
 
 mkdir -p instances
+chmod 700 instances
+
+if [[ "$TARGET_USER" != "root" ]]; then
+  chown "$TARGET_USER":"$TARGET_USER" .env instances || true
+  usermod -aG docker "$TARGET_USER" || true
+fi
 
 docker build -t vpn-xray:latest .
 
@@ -49,4 +66,5 @@ echo ""
 echo "VPS is ready. Next steps:"
 echo "1. Edit .env: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID (optional PUBLIC_IP/SERVER_ADDR)."
 echo "2. Deploy VPNs: ./deploy-vpn.sh vpn1 && ./deploy-vpn.sh vpn2 ..."
+echo "   If docker says 'permission denied', re-login for the docker group or run deploy with sudo."
 echo "3. Open firewall ports printed by deploy-vpn.sh if you use a firewall other than UFW."

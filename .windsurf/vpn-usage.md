@@ -62,21 +62,11 @@ vless://<UUID>@<SERVER>:<HOST_PORT>?encryption=none&flow=xtls-rprx-vision&securi
 
 ### Отозвать доступ пользователю
 
-Автоматического скрипта пока нет. Вручную на VPS:
-
 ```bash
-# 1. Остановить и удалить контейнер
-docker compose rm -sf xray-<name>
-
-# 2. Удалить env/json инстанса
-rm -f instances/<name>.env instances/<name>.json instances/<name>.png
-
-# 3. Перегенерировать compose и применить
-python3 render-configs.py
-docker compose up -d
+./remove-vpn.sh <name>
 ```
 
-Остальные VPN продолжат работать.
+Скрипт остановит и удалит контейнер `xray-<name>`, удалит `instances/<name>.{env,json,png}` и перегенерирует compose. Остальные VPN продолжат работать.
 
 ---
 

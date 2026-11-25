@@ -20,6 +20,7 @@ if [[ -f .env ]]; then
 fi
 
 mkdir -p instances
+chmod 700 instances
 ENV_FILE="instances/${NAME}.env"
 JSON_FILE="instances/${NAME}.json"
 QR_FILE="instances/${NAME}.png"
@@ -29,6 +30,8 @@ DEFAULT_REALITY_DEST="${REALITY_DEST:-www.microsoft.com:443}"
 DEFAULT_REALITY_SERVER_NAME="${REALITY_SERVER_NAME:-www.microsoft.com}"
 DEFAULT_CLIENT_FP="${CLIENT_FP:-chrome}"
 DEFAULT_FLOW="${FLOW:-xtls-rprx-vision}"
+SHARED_SERVER_ADDR="${SERVER_ADDR:-}"
+SHARED_PUBLIC_IP="${PUBLIC_IP:-}"
 
 # Load existing instance values, if any
 if [[ -f "$ENV_FILE" ]]; then
@@ -38,12 +41,21 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-# Fill defaults for values that may be absent in older env files
-REALITY_DEST="${REALITY_DEST:-$DEFAULT_REALITY_DEST}"
-REALITY_SERVER_NAME="${REALITY_SERVER_NAME:-$DEFAULT_REALITY_SERVER_NAME}"
-CLIENT_FP="${CLIENT_FP:-$DEFAULT_CLIENT_FP}"
-FLOW="${FLOW:-$DEFAULT_FLOW}"
+# Secrets and ports are per-instance; shared link/REALITY settings are refreshed from .env.
+INSTANCE_SERVER_ADDR="${SERVER_ADDR:-}"
+REALITY_DEST="$DEFAULT_REALITY_DEST"
+REALITY_SERVER_NAME="$DEFAULT_REALITY_SERVER_NAME"
+CLIENT_FP="$DEFAULT_CLIENT_FP"
+FLOW="$DEFAULT_FLOW"
 PORT="${PORT:-443}"
+SERVER_ADDR="$SHARED_SERVER_ADDR"
+PUBLIC_IP="$SHARED_PUBLIC_IP"
+if [[ -z "$SERVER_ADDR" && -n "$PUBLIC_IP" ]]; then
+  SERVER_ADDR="$PUBLIC_IP"
+fi
+if [[ -z "$SERVER_ADDR" ]]; then
+  SERVER_ADDR="$INSTANCE_SERVER_ADDR"
+fi
 
 # Build image first: instance env generation uses the xray binary for REALITY keys.
 docker build -t vpn-xray:latest . >/dev/null
@@ -77,10 +89,15 @@ if [[ -z "$SERVER_ADDR" ]]; then
   SERVER_ADDR="$(curl -4 -fsS --max-time 10 https://ifconfig.me 2>/dev/null || true)"
 fi
 if [[ -z "$SERVER_ADDR" ]]; then
-  SERVER_ADDR="$(curl -4 -fsS --max-time 10 http://checkip.amazonaws.com 2>/dev/null || true)"
+  SERVER_ADDR="$(curl -4 -fsS --max-time 10 https://checkip.amazonaws.com 2>/dev/null || true)"
 fi
 if [[ -z "$SERVER_ADDR" ]]; then
   echo "FATAL: cannot detect public IP. Set PUBLIC_IP or SERVER_ADDR in .env" >&2
+  exit 1
+fi
+
+if [[ ! "$SERVER_ADDR" =~ ^[A-Za-z0-9.-]+$ ]] || [[ "$SERVER_ADDR" == *[[:space:]]* ]]; then
+  echo "FATAL: invalid SERVER_ADDR: ${SERVER_ADDR}" >&2
   exit 1
 fi
 
@@ -143,7 +160,7 @@ if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: a
   ufw allow "${HOST_PORT}/tcp" >/dev/null || true
 fi
 
-docker compose up -d >/dev/null
+docker compose up -d --remove-orphans >/dev/null
 
 # Basic check that the service is running
 sleep 2

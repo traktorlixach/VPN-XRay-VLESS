@@ -69,6 +69,7 @@ vpn/
   render-configs.py         # instances/*.env -> docker-compose.yml
   send-telegram.sh          # Отправка сообщения/QR в Telegram
   rotate-key.sh             # Смена UUID для одного инстанса
+  remove-vpn.sh             # Отзыв доступа: удалить инстанс и его контейнер
   qr.html                   # QR/ссылка по instances/<name>.json (?name=<name>)
   Dockerfile                # Alpine 3.20 + Xray-core бинарник
   config.json.template      # Шаблон конфига Xray с ${ENV} плейсхолдерами
@@ -82,6 +83,5 @@ vpn/
 
 ## Tech Debt
 
-- [ ] Нет мониторинга/алертов — если контейнер упадёт, узнаешь только при попытке подключиться
 - [ ] `REALITY_DEST=www.microsoft.com` может перестать работать, если Microsoft заблокирует/изменит TLS; тогда поменять в `.env`
-- [ ] Нет автоматического удаления инстанса — для отзыва доступа нужно вручную удалить `instances/<name>.env`, перегенерировать compose и `docker compose up -d`
+- [ ] Нет мониторинга/алертов — если контейнер упадёт, узнаешь только при попытке подключиться

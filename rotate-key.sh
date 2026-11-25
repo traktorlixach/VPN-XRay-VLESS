@@ -65,7 +65,7 @@ fi
 
 python3 render-configs.py
 
-docker compose up -d >/dev/null
+docker compose up -d --remove-orphans >/dev/null
 
 LINK="vless://${NEW_UUID}@${SERVER_ADDR}:${HOST_PORT}?encryption=none&flow=${FLOW}&security=reality&sni=${REALITY_SERVER_NAME}&fp=${CLIENT_FP}&pbk=${REALITY_PUBLIC_KEY}&sid=${REALITY_SHORT_ID}&type=tcp#${NAME}"
 

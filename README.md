@@ -67,9 +67,10 @@ docker compose down
 # Сменить UUID одного VPN (старая ссылка перестанет работать)
 ./rotate-key.sh vpn1
 
-# QR/ссылка без Telegram: поднимите локальный HTTP-сервер и откройте qr.html?name=vpn1
-python3 -m http.server 8000
-# http://<server>:8000/qr.html?name=vpn1
+# QR/ссылка без Telegram: только через SSH-туннель, не открывайте порт наружу
+python3 -m http.server 8000 --bind 127.0.0.1
+# на вашем компьютере: ssh -L 8000:127.0.0.1:8000 user@server
+# затем откройте http://127.0.0.1:8000/qr.html?name=vpn1
 ```
 
 ## Минимальные требования для 4 VPN-контейнеров
