@@ -18,12 +18,19 @@ if [[ ! "$NAME" =~ ^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$ ]]; then
   exit 1
 fi
 
+# Values passed on the command line (PUBLIC_IP=... ./deploy-vpn.sh) override .env.
+CLI_PUBLIC_IP="${PUBLIC_IP:-}"
+CLI_SERVER_ADDR="${SERVER_ADDR:-}"
+
 if [[ -f .env ]]; then
   set -a
   # shellcheck disable=SC1091
   source .env
   set +a
 fi
+
+PUBLIC_IP="${CLI_PUBLIC_IP:-${PUBLIC_IP:-}}"
+SERVER_ADDR="${CLI_SERVER_ADDR:-${SERVER_ADDR:-}}"
 
 mkdir -p instances
 chmod 700 instances
